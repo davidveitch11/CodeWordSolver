@@ -3,3 +3,4 @@
 data
 puzzles/c.pzl
 puzzles/b.pzl
+*.o

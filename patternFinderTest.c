@@ -19,7 +19,7 @@
 
 #define MAX 100
 
-void loop();
+char loop();
 
 int main(int argc, char** argv) {
     printf("When prompted, enter a word to define a pattern followed by\n");
@@ -30,18 +30,22 @@ int main(int argc, char** argv) {
 
     init();
 
-    loop();
+    while (1) {
+        if (loop()) {
+            break;
+        }
+    }
 
     return 1;
 }
 
-void loop() {
+char loop() {
     int buf_len = (MAX * 2) + 3; // space for two words, a space, '\n', and '\0'
     char buffer[buf_len];
 
     printf("\nEnter words: ");
     if (fgets(buffer, buf_len, stdin) != buffer) {
-        perror("err");
+        perror("Buffer read error");
         exit(EXIT_FAILURE);
     }
 
@@ -50,34 +54,40 @@ void loop() {
     // Check for over-length
     if (buffer[len - 1] != '\n') {
         printf("The strings you have given are too long.\n");
-        return;
+        return 0;
     }
 
     // Cut off '\n'
     buffer[len - 1] = '\0';
 
+    // Check for exit
+    if (strncmp(buffer, "quit", 4) == 0) {
+        printf("Quitting\n");
+        return 1;
+    }
+
     char *pattern_string = strtok(buffer, " ");
     if (pattern_string == NULL) {
         printf("Input format invalid (p)\n");
-        return;
+        return 0;
     }
 
     char *mask_string = strtok(NULL, " ");
     if (pattern_string == NULL) {
         printf("Input format invalid (m)\n");
-        return;
+        return 0;
     }
 
     if (strlen(pattern_string) != strlen(mask_string)) {
         printf("Strings must be the same length\n");
-        return;
+        return 0;
     }
 
     size_t n = strlen(pattern_string);
 
     char* pattern = generatePattern(pattern_string, n);
     if (!pattern) {
-        return;
+        return 0;
     }
 
     char* known = malloc(n);
@@ -93,7 +103,7 @@ void loop() {
             known[i] = pattern_string[i];
         } else {
             printf("Mask must only contain '#' or '&'\n");
-            return;
+            return 0;
         }
     }
 
@@ -112,4 +122,6 @@ void loop() {
         }
         printf("\n");
     }
+
+    return 0;
 }

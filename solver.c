@@ -97,9 +97,16 @@ int main(int argc, char **argv) {
     //     once set is made for word, AND with present vector
     // Continue as stated
 
+    // Arguments
+    if (argc != 2) {
+        printf("Usage: $ %s <file_name>\n", argv[0]);
+        printf("where file_name is the location of the puzzle file\n");
+        return -1;
+    }
+
     init();
     
-    puzzle = parse("puzzles/a.pzl");
+    puzzle = parse(argv[1]);
 
     #if VERBOSE
     printf("code letters needed =");
@@ -120,13 +127,13 @@ int main(int argc, char **argv) {
         printf("Puzzle Not Solved\n");
     }
 
-    #if VERBOSE
     printf("Mapping:\n");
     for (int i = 0; i < 26; i++) {
         if (puzzle->known[i]) printf("    %d -> %c\n", i + 1, puzzle->known[i]);
         else printf("    %d -> ?\n", i + 1);
     }
 
+    #if VERBOSE
     printf("Decoded Words:\n");
     struct cwrd** cwrds = puzzle->cwrds;
     struct cwrd* cwrd;

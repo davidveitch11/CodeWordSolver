@@ -4,7 +4,12 @@
 #include <stdio.h>
 
 int main(int argc, char **argv) {
-    struct puzzle* puzzle = parse("puzzles/a.pzl");
+    if (argc != 2) {
+        printf("First argument must be puzzle file name\n");
+        return -1;
+    }
+
+    struct puzzle* puzzle = parse(argv[1]);
 
     // Print puzzle
     for (int i = 0; i < 26; i++) {

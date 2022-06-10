@@ -4,6 +4,11 @@
  * the same directory.
  * 
  * Compiles with link: '-l ws2_32'
+ * 
+ * Usage: ./makeData <file_name> [test]
+ * where file_name is a path to the input file
+ * and test is inlcuded to output to stdout rather
+ * than create new files
  */
 
 #include <stdio.h>

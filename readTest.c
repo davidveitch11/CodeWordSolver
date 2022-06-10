@@ -20,19 +20,19 @@ int main(int argc, char **argv) {
         }
         printf("'\n");
 
-        // char *start = p->start;
+        char *start = p->start;
 
-        // while (start < p->end) {
-        //     printf("\t");
+        while (start < p->end) {
+            printf("\t");
 
-        //     for (char j = 0; j < p->len; j++) {
-        //         printf("%c", *(start + j));
-        //     }
+            for (char j = 0; j < p->len; j++) {
+                printf("%c", *(start + j));
+            }
 
-        //     printf("\n");
+            printf("\n");
 
-        //     start += p->len;
-        // }
+            start += p->len;
+        }
     }
 
     freeDataStore(ds);
