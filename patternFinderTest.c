@@ -17,6 +17,7 @@
 
 #include "data.h"
 
+// Max number of chars for pattern
 #define MAX 100
 
 char loop();
@@ -39,6 +40,10 @@ int main(int argc, char** argv) {
     return 1;
 }
 
+/**
+ * @brief The main loop for the interactive program
+ * @return char 1 if the program should quit, 0 if the loop should continue
+ */
 char loop() {
     int buf_len = (MAX * 2) + 3; // space for two words, a space, '\n', and '\0'
     char buffer[buf_len];
@@ -66,6 +71,8 @@ char loop() {
         return 1;
     }
 
+    // Split the string into halves
+
     char *pattern_string = strtok(buffer, " ");
     if (pattern_string == NULL) {
         printf("Input format invalid (p)\n");
@@ -82,6 +89,8 @@ char loop() {
         printf("Strings must be the same length\n");
         return 0;
     }
+
+    // Convert strings into program pattern
 
     size_t n = strlen(pattern_string);
 
@@ -106,6 +115,8 @@ char loop() {
             return 0;
         }
     }
+
+    // Print the pattern that was observed and scan the word list for entries matching it
 
     for (int i = 0; i < n; i++) {
         printf("%d ", pattern[i]);

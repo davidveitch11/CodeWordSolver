@@ -1,4 +1,10 @@
 
+/**
+ * Test script for the puzzle file parser.
+ * Call with single argument: filename of puzzle file to parse.
+ * Will then display the contents of the file as parsed
+ */
+
 #include "puzzel.h"
 
 #include <stdio.h>

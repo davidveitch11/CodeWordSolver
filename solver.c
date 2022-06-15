@@ -4,40 +4,12 @@
 #include "puzzel.h"
 #include "data.h"
 
+/**
+ * @brief Full set of letters.
+ * The method used for representing sets of the alphabet uses this value to represent
+ * all letters included.
+ */
 #define FULL_SET 0x3FFFFFF
-
-// The list of possibilities
-// Note that a possibility is a 32-bit vector representing a sub-set of the alphabet.
-// The least significant bit represents 'a', so 'z' is accessed by ((0x1 << 25) & v)
-uint32_t possible[26];
-
-uint32_t used = 0;
-
-// struct p {
-//     int num;
-//     uint32_t possible;
-// };
-
-// Code word structure
-// struct cwrd {
-//     int len; // number of code letters
-//     int* clets; // ref to code letter array
-//     // struct p** possible; // for each number, possible solutions
-//     uint32_t* possible;
-//     char dirty; // Set to 1 if any number has been solved (pattern changed)
-
-//     char* pattern; // reprentation of the pattern for this code word
-//     char* known; // pattern but without any filled in values
-// };
-// struct cwrd** cwrds;
-
-// // note a pattern is an array of bytes where each value represents a group
-// // of duplicate characters, except group 0 which represents "no-group"
-
-// // Known letters
-// char known[26] = {0};
-
-struct puzzle* puzzle;
 
 char solve();
 void collatePossibilities();
@@ -71,10 +43,30 @@ void markDirty(int i);
 #define v(m, ...)
 #endif
 
+
+/**
+ * @brief The list of possibilities
+ * Note that a possibility is a 32-bit vector representing a sub-set of the alphabet.
+ * The least significant bit represents 'a', so 'z' is accessed by ((0x1 << 25) & v)
+ */
+uint32_t possible[26];
+
+/**
+ * @brief The set of letters that have already been used in the puzzle
+ */
+uint32_t used = 0;
+
+/**
+ * @brief The puzzle we are currently trying to solve
+ */
+struct puzzle* puzzle;
+
+/**
+ * @brief The current depth of recursion (only used when VERBOSE is set to 1)
+ */
 int depth = 0;
 
 int main(int argc, char **argv) {
-
     // Represent board as array of arrays of integers, also keep pattern
     // Represent known letters as array[26] of chars, index represents
     // code number, value is coded letter. I.e, a[4] -> 'n': replace 4s with ns
@@ -104,10 +96,13 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+    // Initialise the data module - read words list so ready to search for words
     init();
     
+    // Parse the puzzle file pointed to
     puzzle = parse(argv[1]);
 
+    // Print out code letters that are in use if in verbose mode
     #if VERBOSE
     printf("code letters needed =");
     for (int i = 0; i < 26; i++) {
@@ -121,18 +116,21 @@ int main(int argc, char **argv) {
     printf("\n");
     #endif
 
+    // Attempt to solve the puzzle
     if (solve()) {
         printf("Puzzle Solved\n");
     } else {
         printf("Puzzle Not Solved\n");
     }
 
+    // Print out final results
     printf("Mapping:\n");
     for (int i = 0; i < 26; i++) {
         if (puzzle->known[i]) printf("    %d -> %c\n", i + 1, puzzle->known[i]);
         else printf("    %d -> ?\n", i + 1);
     }
 
+    // Print out decoded words if in verbose mode
     #if VERBOSE
     printf("Decoded Words:\n");
     struct cwrd** cwrds = puzzle->cwrds;
@@ -150,9 +148,16 @@ int main(int argc, char **argv) {
     }
     #endif
 
+    freePuzzle(puzzle);
+
     return 0;
 }
 
+/**
+ * @brief Recursively attempt to solve the puzzle
+ * 
+ * @return char 1 on success, 0 on failure
+ */
 char solve() {
     // Check for case where all solutions found
     int t = 0;
@@ -166,6 +171,7 @@ char solve() {
         return 1;
     }
 
+    // Check if recursion limit reached yet
     #if TRACE_LIMIT
     depth++;
     if (depth > 30) {
@@ -174,15 +180,7 @@ char solve() {
     }
     #endif
 
-    // Construct used value
-    used = 0x0;
-    for (int i = 0; i < 26; i++) {
-        // If code letter i has a known value, set that value's bit in the used vector
-        if (puzzle->known[i]) {
-            used |= 0x1 << (puzzle->known[i] - 'a');
-        }
-    }
-
+    // Print out the current known or assumed solutions if in verbose mode
     #if VERBOSE
     printf("Attempting to solve\n");
     printf("Current Known = ");
@@ -192,9 +190,18 @@ char solve() {
     printf("\n");
     #endif
 
+    // Construct the 'used' value (set of letters which have been used in the puzzle so far)
+    used = 0x0;
+    for (int i = 0; i < 26; i++) {
+        // If code letter i has a known value, set that value's bit in the used vector
+        if (puzzle->known[i]) {
+            used |= 0x1 << (puzzle->known[i] - 'a');
+        }
+    }
+
     d("Used = %x\n", used);
 
-    // Collect for each code word and collate results
+    // Collect possible decodings for each code word and collate results
     collatePossibilities();
 
     #if DEBUG
@@ -206,14 +213,21 @@ char solve() {
 
     // Look for solutions
 
+    // A set of letters (initially empty) given to each code letter
     char solutions[26] = {0};
+
+    // The number of full solutions found
     int num_solns = 0;
     
+    // The index of the code letter with the fewest possible solutions (>1) and
+    // the number of solutions. I.e., the most easily guessable letter
     int guessable = -1;
     int guessabel_num = -1;
 
+    // Look through possibilities to find solutions
     num_solns = findSolutions(solutions, &guessable, &guessabel_num);
 
+    // Print out the results of finding solutions if in verbose mode
     #if VERBOSE
     printf("Found %d solutions\n", num_solns);
     if (num_solns == 0) {
@@ -240,6 +254,7 @@ char solve() {
 
         d("    G=%d, GN=%d\n", guessable, guessabel_num);
 
+        // Choose any possible solution to guess and recurse. Returns the best result of guessing
         char ret = noSolutions(guessabel_num, guessable);
 
         #if TRACE_LIMIT
@@ -259,31 +274,32 @@ char solve() {
     return ret;
 }
 
+/**
+ * @brief Find the possible solutions for each codeword and collate the results.
+ * Finds the possible solutions for each codeletter for each codeword.
+ * Hence, finds the possible solutions for each codeletter that fit all codewords 
+ */
 void collatePossibilities() {
-    // Reset values
+    // Reset possibility sets
     for (int i = 0; i < 26; i++) {
         possible[i] = FULL_SET;
     }
-
-    #if DEBUG
-    int count_words = 0;
-    #endif
 
     // Collect and collate
     struct cwrd** cs = puzzle->cwrds;
     struct cwrd* cw;
     while (cw = *cs) {
-        d("CW %d\n", count_words);
-
+        // If the codeword has been changed (one of its codeletters decoded) since last calculation of
+        // possibilities for its letters, recalculate. Else, use already calculated values
         if (cw->dirty) {
-            // calc
+            // Calculate possibilities for this codeword
             collect(cw);
 
-            // Reset
+            // Reset dirty bit
             cw->dirty = 0;
         }
 
-        // Collate each value in possibilities list with total list
+        // Collate each value in possibilities list with total list, for each codeletter in word
         for (int i = 0; i < cw->len; i++) {
             d("  possibilities (%d) %x\n", cw->clets[i], cw->possible[i]);
 
@@ -295,18 +311,32 @@ void collatePossibilities() {
         cs++;
     }
 
-    // Remove from possibility list any taken letters
+    // Remove from possibility list any letters which have already been used elsewhere
     for (int i = 0; i < 26; i++) {
         possible[i] = possible[i] & (~used);
     }
 }
 
+/**
+ * @brief Find possible solutions for the puzzle.
+ * If possible, find solutions in the global list of possible solutions.
+ * If no definite solutions can be found, return the most guessable solutions.
+ * If any letter is found to have no possibilities, the puzzle is unsolvable from this state,
+ * and returns -1
+ * @param solutions array of zeros representing codeletters, where definite solutions can be placed
+ * @param guessable the index of the "most guessable" code letter - the one with the fewest possible solutions (>1)
+ * @param guessable_num the number of solutions of the "most guessable" codeletter
+ * @return int number of solutions found (>= 0) or -1 if an unsolvable letter found
+ */
 int findSolutions(char *solutions, int *guessable, int *guessable_num) {
     d("Finding solutions\n");
 
+    // Count number of definite solutions found
     int num = 0;
+
+    // For each codeletter
     for (int i = 0; i < 26; i++) {
-        // Ignore codes where the letter is already known
+        // Ignore codeletters where the letter is already known
         if (puzzle->known[i]) {
             continue;
         }
@@ -317,12 +347,14 @@ int findSolutions(char *solutions, int *guessable, int *guessable_num) {
         d("    %d possibilities for number %d", n, i);
 
         if (n == 0) {
+            // No possible solutions - error
+
             d(" - failure\n");
 
             // return failure
             return -1;
         } else if (n == 1) {
-            // Add to list of solutions
+            // Exactly one possibility - Add to list of solutions
             
             uint32_t mask = 0x1;
             for (char c = 'a'; c <= 'z'; c++) {
@@ -338,25 +370,31 @@ int findSolutions(char *solutions, int *guessable, int *guessable_num) {
 
             num++;
         } else {
-            // d("Guessable_num=%d guessable=%d\n", *guessable_num, *guessable);
+            // More than one possibility - still a guessable codeletter - maybe save for later
             
-            // Look for letter with fewest possible solutions
+            // If this letter has the fewest solutions of those seen so far (>1), save if for later
             if (*guessable_num == -1 || *guessable_num > n) {
                 *guessable_num = n;
                 *guessable = i;
 
                 d(" - set as guessable\n");
             }
-
-            // d("Guessable_num=%d guessable=%d\n", *guessable_num, *guessable);
         }
     }
-
-    // d("Returning %d\n", num);
 
     return num;
 }
 
+/**
+ * @brief Recursively solve using the most guessable codeletter.
+ * In the event there is no definite solution, the index guessable represents the codeletter with the
+ * fewest possible solutions. For each of these solutions, assume it is the correct solutions and
+ * recursively try to continue solving. If the solution works, great. Otherwise, try the next possibility.
+ * If no more possibilities remain, return a failure.
+ * @param guessable_num number of possible solutions
+ * @param guessable code letter that is guessable
+ * @return char 1 on success, 0 on failure
+ */
 char noSolutions(int guessable_num, int guessable) {
     // Check for case where no letter had any possible solutions
     if (guessable_num == -1) {
@@ -391,11 +429,20 @@ char noSolutions(int guessable_num, int guessable) {
         mask = mask << 1;
     }
 
-    // None of the guesses produced a solution
+    // None of the guesses produced a solution - return failure
+    
+    // Remove assumed solutions
+    puzzle->known[guessable] = 0;
+
     v("No guess produced solution\n");
     return 0;
 }
 
+/**
+ * @brief Recursively solve if at least one definite solution found
+ * @param solutions solutions found (i-th entry represents decoding of codeletter i)
+ * @return char 0 on failure, 1 on success
+ */
 char recurse(char *solutions) {
     // Add solutions to values and recurse
     for (int i = 0; i < 26; i++) {
@@ -403,11 +450,11 @@ char recurse(char *solutions) {
             continue;
         }
 
+        // Add to puzzle list
         char s = solutions[i];
         puzzle->known[i] = s;
 
-        // swap i for s
-
+        // Mark all codewords that use codeletter i as dirty
         markDirty(i);
     }
 
@@ -435,10 +482,11 @@ void collect(struct cwrd* cw) {
 
     // Construct pattern
     for (int i = 0; i < cw->len; i++) {
-        // If the cw doesn't know position i and the puzzel does, set it in the known field
+        // If the cw doesn't know position i and the puzzel does, move it into the known field
         if (cw->known[i] == 0 && puzzle->known[cw->clets[i] - 1]) {
             d("  position=%d code-letter=%d known-value=%d puzzle-known=%d\n",
                 i, cw->known[i], cw->clets[i] - 1, puzzle->known[cw->clets[i] - 1]);
+            
             cw->known[i] = puzzle->known[cw->clets[i] - 1];
         }
     }
@@ -451,32 +499,20 @@ void collect(struct cwrd* cw) {
     printf("\n");
     #endif
 
+    // Indicate to datastore that we are now searching using a different pattern
     newPattern(cw->len, cw->pattern, cw->known);
 
     // Iterate over words matching pattern
     char *word;
     while (word = nextWord()) {
-        #if DEBUG
-        // printf("    word=");
-        // for (int i = 0; i < cw->len; i++) {
-        //     char c = *(word + i);
-        //     printf(" %c", c);
-        // }
-        // printf("\n");
-        #endif
-
         for (int i = 0; i < cw->len; i++, word++) {
-            // d("    c=%c ", *word);
+            // Get ith letter c from word
 
-            // get ith letter c from word
-            // convert c to mask
+            // Convert to mask
             uint32_t mask = 0x1 << ((*word) - 'a');
-
-            // d("shift=%d mask=%x pos=%x\n", ((*word) - 'a'), mask, cw->possible[i]);
 
             // 'or' onto possible[i]
             cw->possible[i] |= mask;
-            // d("    pos=%x\n", cw->possible[i]);
         }
     }
 }

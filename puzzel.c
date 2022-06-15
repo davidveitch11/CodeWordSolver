@@ -136,6 +136,9 @@ char parseKnown(FILE *fp, char *known) {
     return 1;
 }
 
+/**
+ * @brief Parse a line of input from the file as a codeword
+ */
 struct cwrd_node* parseWord(FILE *fp, struct cwrd_node* head) {
     // Read a line
     char line_buffer[100];
@@ -217,17 +220,29 @@ struct cwrd_node* parseWord(FILE *fp, struct cwrd_node* head) {
         exit(EXIT_FAILURE);
     }
 
-    // node->cwrd->pattern = calloc(1, n);
-    // if (!node->cwrd->pattern) {
-    //     perror("Failed to allocate pattern");
-    //     exit(EXIT_FAILURE);
-    // }
     node->cwrd->pattern = generatePattern(node->cwrd->clets, node->cwrd->len);
 
     return node;
 }
 
-
+/**
+ * @brief Method for freeing the memory belonging to a puzzle
+ */
 void freePuzzle(struct puzzle* p) {
+    struct cwrd **cws = p->cwrds;
+    while (*cws) {
+        struct cwrd* cw = *cws;
 
+        free(cw->clets);
+        free(cw->possible);
+        free(cw->pattern);
+        free(cw->known);
+
+        free(cw);
+
+        cws++;
+    }
+
+    free(p->cwrds);
+    free(p);
 }

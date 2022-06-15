@@ -7,8 +7,7 @@
  * 
  * Usage: ./makeData <file_name> [test]
  * where file_name is a path to the input file
- * and test is inlcuded to output to stdout rather
- * than create new files
+ * and test is inlcuded to output to stdout rather than create new files
  */
 
 #include <stdio.h>
@@ -24,9 +23,13 @@
 
 #include "makeData.h"
 
+// Temporary linked list for the patterns (and subsequently words)
 struct pattern_list_node* list = NULL;
+
+// Current length of that linked list
 uint32_t num_patterns = 0;
 
+// Buffer to hold a line being read from the file
 char buffer[100];
 char pattern_buffer[100];
 
@@ -43,8 +46,10 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
+    // Load the word list in
     input(argv[1]);
 
+    // Output the processed patterns to stdout or the files, depending on arguments given
     if (argc == 3) {
         outputStd();
     } else {
@@ -54,6 +59,9 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+/**
+ * @brief Load the words list from the file given
+ */
 void input(char *file_name) {
     FILE* fp = fopen(file_name, "r");
     if (!fp) {
@@ -61,6 +69,7 @@ void input(char *file_name) {
         exit(EXIT_FAILURE);
     }
 
+    // Get the next line, form a pattern and add it to the list
     while (fgets(buffer, 100, fp)) {
         get_pattern();
         add_pattern();
@@ -69,13 +78,23 @@ void input(char *file_name) {
     fclose(fp);
 }
 
+/**
+ * @brief Get the pattern for the word currently held in buffer
+ */
 void get_pattern() {
-    // Cut off line terminator
+    // Cut off at first line terminator
     char *b = buffer;
     while (*b) {
+        // Once reached line terminator, cut string
         if (*b == '\n' || *b == '\r') {
             *b = 0;
             break;
+        }
+
+        // Check all other characters are alphabetic
+        if (*b < 'a' || *b > 'z') {
+            printf("Error in line '%s': non-alphabetic character '%c' (%d) encountered\n", buffer, *b, *b);
+            exit(EXIT_FAILURE);
         }
 
         b++;
@@ -140,7 +159,12 @@ void get_pattern() {
     }
 }
 
+/**
+ * @brief Add the pattern currently held in pattern_buffer and the associated word in buffer
+ * to the list of patterns and words
+ */
 void add_pattern() {
+    // Get the length of both pattern and word
     int n = strlen(buffer);
 
     #if DEBUG
@@ -150,6 +174,7 @@ void add_pattern() {
         printf("\n");
     #endif
 
+    // Search current pattern list to see if this pattern is already in use
     struct pattern_list_node* head = list;
     while (head) {
         #if DEBUG
@@ -159,6 +184,7 @@ void add_pattern() {
             printf("\n");
         #endif
 
+        // If patterns match, add to list and return
         if (head->len == n && memcmp(pattern_buffer, head->pattern, n) == 0) {
             // Found location
             add_word_to_pattern(head, n);
@@ -169,19 +195,26 @@ void add_pattern() {
         head = head->next;
     }
 
+    // No pattern found in list - add pattern to the list
     new_pattern_node(n);
     add_word_to_pattern(list, n);
 }
 
+/**
+ * @brief Allocate a new linked list node to hold the pattern currently in pattern
+ * buffer, then add this to the current list of patterns
+ */
 void new_pattern_node(int n) {
     num_patterns++;
 
+    // Allocate node
     struct pattern_list_node* node = malloc(sizeof(struct pattern_list_node));
     if (!node) {
         perror("Failed to allocate pattern list node");
         exit(EXIT_FAILURE);
     }
 
+    // Fill simple values, including tail of list, allocate memory for pattern
     node->len = n;
     node->next = list;
     node->list = NULL;
@@ -193,8 +226,10 @@ void new_pattern_node(int n) {
         exit(EXIT_FAILURE);
     }
 
+    // Copy over the pattern
     memcpy(node->pattern, pattern_buffer, n);
 
+    // Set this mode as the new head of the lsit
     list = node;
 
     #if DEBUG
@@ -206,24 +241,31 @@ void new_pattern_node(int n) {
     #endif
 }
 
+/**
+ * @brief Add the word held in buffer to the pattern list node provided.
+ */
 void add_word_to_pattern(struct pattern_list_node* node, int n) {
+    // Allocate new word list node to hold the word
     struct word_list_node* wln = malloc(sizeof(struct word_list_node));
     if (!wln) {
         perror("Failed to allocate word list node");
         exit(EXIT_FAILURE);
     }
 
+    // Set as head of the list
     wln->next = node->list;
     node->list = wln;
     
     node->num++;
 
+    // Allocate memory for word
     wln->word = malloc(n + 1);
     if (!wln->word) {
         perror("Failed to allocate string for word");
         exit(EXIT_FAILURE);
     }
     
+    // Copy over
     memcpy(wln->word, buffer, n);
     wln->word[n] = 0;
 
@@ -232,16 +274,24 @@ void add_word_to_pattern(struct pattern_list_node* node, int n) {
     #endif
 }
 
+/**
+ * @brief Output the words and patterns to standard out.
+ * Will not save any files 
+ */
 void outputStd() {
     while (list) {
+        // Print out pattern
         printf("'");
         for (int i = 0; i < list->len; i++) {
             printf("%d ", list->pattern[i]);
         }
         printf("' (%d words)\n", list->num);
 
+        // Print out each word in this pattern's list
         while (list->list) {
             printf("\t%s\n", list->list->word);
+
+            // Free this word node and move to the next
 
             struct word_list_node* next = list->list->next;
 
@@ -250,6 +300,8 @@ void outputStd() {
 
             list->list = next;
         }
+
+        // Free this node and move to the next
 
         struct pattern_list_node* next = list->next;
 
@@ -260,7 +312,13 @@ void outputStd() {
     }
 }
 
+/**
+ * @brief Output the patterns and words to the correct files.
+ * Will output to data/words and data/patternIndex
+ */
 void outputFile() {
+    // Create/Open the two output files
+
     FILE *wf = fopen("data/words", "wb");
     if (!wf) {
         perror("Failed to open words file");
@@ -281,22 +339,19 @@ void outputFile() {
     }
     num_patterns = ntohl(num_patterns);
 
+    // The index currently being written to in the words list
     uint32_t wi = 0;
 
     while (list) {
         // Write the pattern record
 
         // length of pattern
-        // fwrite(&(list->len), 1, 1, stdout);
-        // printf("write len\n");
         if (fwrite(&(list->len), 1, 1, pf) != 1) {
             perror("Failed to write len");
             exit(EXIT_FAILURE);
         }
 
         // pattern
-        // fwrite(list->pattern, 1, list->len, stdout);
-        // printf("write pattern\n");
         if (fwrite(list->pattern, 1, list->len, pf) != list->len) {
             perror("Failed to write pattern");
             exit(EXIT_FAILURE);
@@ -311,8 +366,6 @@ void outputFile() {
 
         // index
         wi = htonl(wi);
-        // fwrite(&wi, 4, 1, stdout);
-        // printf("write index\n");
         if (fwrite(&wi, 4, 1, pf) != 1) {
             perror("Failed to write index");
             exit(EXIT_FAILURE);
@@ -325,8 +378,6 @@ void outputFile() {
 
         // number of words
         list->num = htonl(list->num);
-        // fwrite(&(list->num), 4, 1, stdout);
-        // printf("write num\n");
         if (fwrite(&(list->num), 4, 1, pf) != 1) {
             perror("Failed to write num");
             exit(EXIT_FAILURE);

@@ -1,7 +1,7 @@
 /**
- * Test file to read in the data stored in directory "data" created using
- * makeData. It will output the data in the same form as output by adding
- * flag 'test' to makeData. Both output to stdout.
+ * Test file for word list, reads the data stored in directory "data" created using
+ * makeData. It will output the data in the same form as output by adding flag
+ * 'test' to makeData. Both output to stdout.
  */
 
 #include "dataStore.h"

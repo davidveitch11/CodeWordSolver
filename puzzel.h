@@ -1,4 +1,7 @@
 
+#ifndef PUZZLE_H_
+#define PUZZLE_H_
+
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -23,3 +26,5 @@ struct puzzle* parse(char *filename);
 char parseKnown(FILE *fp, char *known);
 struct cwrd_node* parseWord(FILE *fp, struct cwrd_node* head);
 void freePuzzle(struct puzzle* p);
+
+#endif

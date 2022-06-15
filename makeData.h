@@ -20,4 +20,5 @@ void add_word_to_pattern(struct pattern_list_node* node, int n);
 void outputStd();
 void outputFile();
 
+// Set to 1 to include additional debugging output
 #define DEBUG 0
